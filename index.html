@@ -28,6 +28,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // Importar todas las funciones necesarias
         import { getFirestore, doc, setDoc, onSnapshot, collection, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
@@ -73,15 +74,20 @@
                     window.db = db; // Hacer db accesible globalmente
                     window.userId = userId; // Hacer userId accesible globalmente
                     
+                    // FIX: Exponer las funciones de Firestore necesarias al scope global (window)
+                    window.doc = doc;
+                    window.setDoc = setDoc;
+                    window.serverTimestamp = serverTimestamp;
+                    
                     // Inicializar la escucha del carrito una vez que el usuario esté listo
-                    setupCartListener();
+                    setupCartListener(db, userId, appId); // Pasar appId
                 } else {
                     console.log("No user signed in.");
                 }
             });
         };
 
-        const setupCartListener = () => {
+        const setupCartListener = (db, userId, appId) => {
             if (!db || !userId) return;
 
             // Ruta de la colección privada para el carrito: /artifacts/{appId}/users/{userId}/clothing_orders
@@ -109,6 +115,9 @@
     </script>
     <script>
         // --- Constantes y Estado Global ---
+        // Definir appId aquí para que sea accesible por la función updateCartInFirestore en este scope.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
         // Número de WhatsApp del vendedor (¡REEMPLAZAR!)
         const RESTAURANT_PHONE = "5493511112222"; // Ejemplo: 549XXXXXX (código de país + área + número)
 
@@ -140,16 +149,22 @@
         // --- Funciones de Firestore y Carrito ---
 
         const updateCartInFirestore = async (newCart) => {
-            if (!window.db || !window.userId) {
-                console.error("Base de datos o ID de usuario no disponible.");
+            // FIX: Verificar que las funciones de Firebase estén disponibles en el scope global (window)
+            if (!window.db || !window.userId || typeof window.doc !== 'function' || typeof window.setDoc !== 'function' || typeof window.serverTimestamp !== 'function') {
+                console.error("Base de datos o ID de usuario/funciones de Firebase no disponibles.");
+                // Intentamos notificar si la función de notificación ya está cargada
+                if (typeof window.showNotification === 'function') {
+                    showNotification("Base de datos no disponible. Esperando autenticación.", 'error');
+                }
                 return;
             }
             
-            // Ruta del documento de carrito (la misma que se usa para onSnapshot)
-            const cartRef = doc(window.db, 'artifacts', appId, 'users', window.userId, 'clothing_orders', 'current_cart');
+            // Ruta del documento de carrito (usando window.doc)
+            const cartRef = window.doc(window.db, 'artifacts', appId, 'users', window.userId, 'clothing_orders', 'current_cart');
             
             try {
-                await setDoc(cartRef, { items: newCart, lastUpdated: serverTimestamp() }, { merge: true });
+                // Usando window.setDoc y window.serverTimestamp
+                await window.setDoc(cartRef, { items: newCart, lastUpdated: window.serverTimestamp() }, { merge: true });
             } catch (error) {
                 console.error("Error al actualizar el carrito en Firestore:", error);
                 showNotification("Error al guardar el carrito.", 'error');
@@ -431,7 +446,6 @@
 
     <!-- Contenedor de Notificaciones -->
     <div id="notification-container" class="fixed top-4 right-4 z-50 w-full max-w-xs pointer-events-none">
-
         <!-- Las notificaciones se insertarán aquí -->
     </div>
 
@@ -501,7 +515,6 @@
                     <p class="text-lg font-semibold text-gray-700 mb-3">Datos de Envío</p>
                     <div class="grid grid-cols-1 gap-4">
                         <input type="text" id="customer-name" placeholder="Tu Nombre Completo" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500">
-
                         <input type="tel" id="customer-phone" placeholder="Tu Teléfono (WhatsApp)" required pattern="[0-9+ ]{8,}" title="Introduce un número de teléfono válido" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500">
                         <textarea id="customer-address" placeholder="Dirección de Envío Completa" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"></textarea>
                     </div>
