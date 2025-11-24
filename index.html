@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tienda de Ropa | Checkout WhatsApp</title>
+    <title>Tienda de Ropa | Checkout WhatsApp Rápido</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -24,104 +24,13 @@
             backdrop-filter: blur(5px);
         }
     </style>
-    <!-- Importaciones de Firebase -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // Importar todas las funciones necesarias
-        import { getFirestore, doc, setDoc, onSnapshot, collection, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Establecer el nivel de logs para ver la actividad de Firebase
-        // setLogLevel('Debug');
-
-        // Global variables provided by the environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        let app;
-        let db;
-        let auth;
-        let userId = null;
-
-        const initFirebase = async () => {
-            if (!firebaseConfig) {
-                console.error("Firebase config is missing.");
-                return;
-            }
-
-            app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-
-            // Intentar iniciar sesión con el token personalizado, o anónimamente como fallback
-            try {
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error("Firebase Auth Error:", error);
-            }
-
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    userId = user.uid;
-                    document.getElementById('user-id-display').textContent = `ID Usuario: ${userId.substring(0, 8)}...`;
-                    console.log("Usuario autenticado. UID:", userId);
-                    window.db = db; // Hacer db accesible globalmente
-                    window.userId = userId; // Hacer userId accesible globalmente
-                    
-                    // FIX: Exponer las funciones de Firestore necesarias al scope global (window)
-                    window.doc = doc;
-                    window.setDoc = setDoc;
-                    window.serverTimestamp = serverTimestamp;
-                    
-                    // Inicializar la escucha del carrito una vez que el usuario esté listo
-                    setupCartListener(db, userId, appId); // Pasar appId
-                } else {
-                    console.log("No user signed in.");
-                }
-            });
-        };
-
-        const setupCartListener = (db, userId, appId) => {
-            if (!db || !userId) return;
-
-            // Ruta de la colección privada para el carrito: /artifacts/{appId}/users/{userId}/clothing_orders
-            const cartRef = doc(db, 'artifacts', appId, 'users', userId, 'clothing_orders', 'current_cart');
-            
-            onSnapshot(cartRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const cartData = docSnap.data().items || {};
-                    // Actualizar el estado global del carrito
-                    window.cart = cartData;
-                    window.renderCart();
-                } else {
-                    // Si el documento no existe, inicializar el carrito vacío
-                    window.cart = {};
-                    window.renderCart();
-                    console.log("Documento de carrito no encontrado, inicializando...");
-                    setDoc(cartRef, { items: {}, createdAt: serverTimestamp() }).catch(e => console.error("Error al crear carrito:", e));
-                }
-            }, (error) => {
-                console.error("Error al escuchar el carrito:", error);
-            });
-        };
-
-        initFirebase();
-    </script>
     <script>
         // --- Constantes y Estado Global ---
-        // Definir appId aquí para que sea accesible por la función updateCartInFirestore en este scope.
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
+        
         // Número de WhatsApp del vendedor (¡REEMPLAZAR!)
         const RESTAURANT_PHONE = "5493511112222"; // Ejemplo: 549XXXXXX (código de país + área + número)
 
-        // Carrito inicializado vacío (se actualizará con Firebase)
+        // Carrito inicializado vacío (gestión en memoria)
         window.cart = {};
         
         // Datos de los productos de la tienda de ropa
@@ -146,58 +55,34 @@
 
         const getProductById = (id) => products.find(p => p.id === id);
         
-        // --- Funciones de Firestore y Carrito ---
-
-        const updateCartInFirestore = async (newCart) => {
-            // FIX: Verificar que las funciones de Firebase estén disponibles en el scope global (window)
-            if (!window.db || !window.userId || typeof window.doc !== 'function' || typeof window.setDoc !== 'function' || typeof window.serverTimestamp !== 'function') {
-                console.error("Base de datos o ID de usuario/funciones de Firebase no disponibles.");
-                // Intentamos notificar si la función de notificación ya está cargada
-                if (typeof window.showNotification === 'function') {
-                    showNotification("Base de datos no disponible. Esperando autenticación.", 'error');
-                }
-                return;
-            }
-            
-            // Ruta del documento de carrito (usando window.doc)
-            const cartRef = window.doc(window.db, 'artifacts', appId, 'users', window.userId, 'clothing_orders', 'current_cart');
-            
-            try {
-                // Usando window.setDoc y window.serverTimestamp
-                await window.setDoc(cartRef, { items: newCart, lastUpdated: window.serverTimestamp() }, { merge: true });
-            } catch (error) {
-                console.error("Error al actualizar el carrito en Firestore:", error);
-                showNotification("Error al guardar el carrito.", 'error');
-            }
-        };
+        // --- Funciones del Carrito (Solo en Memoria) ---
 
         window.addToCart = (productId) => {
             const id = productId.toString();
-            const newCart = { ...window.cart };
+            // Actualizar el carrito en memoria
+            window.cart[id] = (window.cart[id] || 0) + 1;
             
-            newCart[id] = (newCart[id] || 0) + 1;
-            
-            updateCartInFirestore(newCart);
+            window.renderCart(); // Volver a dibujar el carrito
             showNotification(`${getProductById(productId).name} agregado al carrito!`);
         };
 
         window.removeFromCart = (productId) => {
             const id = productId.toString();
-            const newCart = { ...window.cart };
 
-            if (newCart[id] > 1) {
-                newCart[id] -= 1;
-            } else if (newCart[id] === 1) {
-                delete newCart[id];
+            if (window.cart[id] > 1) {
+                window.cart[id] -= 1;
+            } else if (window.cart[id] === 1) {
+                delete window.cart[id];
             } else {
                 return;
             }
 
-            updateCartInFirestore(newCart);
+            window.renderCart(); // Volver a dibujar el carrito
         };
         
         window.clearCart = () => {
-            updateCartInFirestore({});
+            window.cart = {}; // Vaciar el carrito en memoria
+            window.renderCart();
         };
         
         // --- Funciones de Renderizado ---
@@ -268,6 +153,7 @@
             document.getElementById('checkout-modal').classList.remove('hidden');
             document.getElementById('checkout-total').textContent = window.calculateTotal();
             document.getElementById('payment-cash-details').classList.add('hidden');
+            document.getElementById('confirmation-modal').classList.add('hidden'); // Ocultar confirmación previa si estaba visible
         };
 
         window.closeCheckoutModal = () => {
@@ -345,7 +231,8 @@
             const whatsappUrl = `https://wa.me/${RESTAURANT_PHONE}?text=${message}`;
 
             window.closeCheckoutModal();
-            window.clearCart(); // Limpiar el carrito después de generar el pedido
+            // NOTA: No hay necesidad de limpiar el carrito de forma asíncrona, ya que está en memoria.
+            window.clearCart(); 
 
             if (formData.paymentMethod === 'Online') {
                 // Simulación de pasarela de pago
@@ -437,7 +324,7 @@
                 productGrid.appendChild(card);
             });
             
-            // Inicializar el carrito (será sobreescrito por el listener de Firebase)
+            // Inicializar el carrito
             window.renderCart();
         };
     </script>
@@ -458,7 +345,7 @@
                 </svg>
                 MODA RÁPIDA
             </h1>
-            <span id="user-id-display" class="text-xs text-gray-500">Cargando ID...</span>
+            <!-- Ya no se muestra el ID de usuario -->
         </div>
     </header>
 
