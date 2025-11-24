@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tienda de Ropa | Checkout WhatsApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+        }
+        .product-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        /* Estilo para el modal */
+        .modal {
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+        }
+    </style>
+    <!-- Importaciones de Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Establecer el nivel de logs para ver la actividad de Firebase
+        // setLogLevel('Debug');
+
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app;
+        let db;
+        let auth;
+        let userId = null;
+
+        const initFirebase = async () => {
+            if (!firebaseConfig) {
+                console.error("Firebase config is missing.");
+                return;
+            }
+
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+
+            // Intentar iniciar sesión con el token personalizado, o anónimamente como fallback
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Firebase Auth Error:", error);
+            }
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    document.getElementById('user-id-display').textContent = `ID Usuario: ${userId.substring(0, 8)}...`;
+                    console.log("Usuario autenticado. UID:", userId);
+                    window.db = db; // Hacer db accesible globalmente
+                    window.userId = userId; // Hacer userId accesible globalmente
+                    
+                    // Inicializar la escucha del carrito una vez que el usuario esté listo
+                    setupCartListener();
+                } else {
+                    console.log("No user signed in.");
+                }
+            });
+        };
+
+        const setupCartListener = () => {
+            if (!db || !userId) return;
+
+            // Ruta de la colección privada para el carrito: /artifacts/{appId}/users/{userId}/clothing_orders
+            const cartRef = doc(db, 'artifacts', appId, 'users', userId, 'clothing_orders', 'current_cart');
+            
+            onSnapshot(cartRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const cartData = docSnap.data().items || {};
+                    // Actualizar el estado global del carrito
+                    window.cart = cartData;
+                    window.renderCart();
+                } else {
+                    // Si el documento no existe, inicializar el carrito vacío
+                    window.cart = {};
+                    window.renderCart();
+                    console.log("Documento de carrito no encontrado, inicializando...");
+                    setDoc(cartRef, { items: {}, createdAt: serverTimestamp() }).catch(e => console.error("Error al crear carrito:", e));
+                }
+            }, (error) => {
+                console.error("Error al escuchar el carrito:", error);
+            });
+        };
+
+        initFirebase();
+    </script>
+    <script>
+        // --- Constantes y Estado Global ---
+        // Número de WhatsApp del vendedor (¡REEMPLAZAR!)
+        const RESTAURANT_PHONE = "5493511112222"; // Ejemplo: 549XXXXXX (código de país + área + número)
+
+        // Carrito inicializado vacío (se actualizará con Firebase)
+        window.cart = {};
+        
+        // Datos de los productos de la tienda de ropa
+        const products = [
+            { id: 1, name: 'Camiseta Oversize "Lunar"', price: 15000, img: 'https://placehold.co/400x500/000000/FFFFFF?text=Camiseta+Oversize' },
+            { id: 2, name: 'Jeans Distressed Clásicos', price: 35000, img: 'https://placehold.co/400x500/3B82F6/FFFFFF?text=Jeans+Rotos' },
+            { id: 3, name: 'Chaqueta de Cuero Vintage', price: 65000, img: 'https://placehold.co/400x500/444444/FFFFFF?text=Chaqueta+Cuero' },
+            { id: 4, name: 'Sudadera con Capucha "Vibe"', price: 22000, img: 'https://placehold.co/400x500/EF4444/FFFFFF?text=Hoodie+Vibe' },
+            { id: 5, name: 'Falda Plisada Midi Negra', price: 28000, img: 'https://placehold.co/400x500/10B981/FFFFFF?text=Falda+Plisada' },
+            { id: 6, name: 'Zapatillas Urbanas Premium', price: 40000, img: 'https://placehold.co/400x500/F97316/FFFFFF?text=Zapatillas' },
+        ];
+        
+        // --- Funciones de Utilidad ---
+
+        const formatCurrency = (amount) => {
+            return new Intl.NumberFormat('es-AR', {
+                style: 'currency',
+                currency: 'ARS',
+                minimumFractionDigits: 0
+            }).format(amount);
+        };
+
+        const getProductById = (id) => products.find(p => p.id === id);
+        
+        // --- Funciones de Firestore y Carrito ---
+
+        const updateCartInFirestore = async (newCart) => {
+            if (!window.db || !window.userId) {
+                console.error("Base de datos o ID de usuario no disponible.");
+                return;
+            }
+            
+            // Ruta del documento de carrito (la misma que se usa para onSnapshot)
+            const cartRef = doc(window.db, 'artifacts', appId, 'users', window.userId, 'clothing_orders', 'current_cart');
+            
+            try {
+                await setDoc(cartRef, { items: newCart, lastUpdated: serverTimestamp() }, { merge: true });
+            } catch (error) {
+                console.error("Error al actualizar el carrito en Firestore:", error);
+                showNotification("Error al guardar el carrito.", 'error');
+            }
+        };
+
+        window.addToCart = (productId) => {
+            const id = productId.toString();
+            const newCart = { ...window.cart };
+            
+            newCart[id] = (newCart[id] || 0) + 1;
+            
+            updateCartInFirestore(newCart);
+            showNotification(`${getProductById(productId).name} agregado al carrito!`);
+        };
+
+        window.removeFromCart = (productId) => {
+            const id = productId.toString();
+            const newCart = { ...window.cart };
+
+            if (newCart[id] > 1) {
+                newCart[id] -= 1;
+            } else if (newCart[id] === 1) {
+                delete newCart[id];
+            } else {
+                return;
+            }
+
+            updateCartInFirestore(newCart);
+        };
+        
+        window.clearCart = () => {
+            updateCartInFirestore({});
+        };
+        
+        // --- Funciones de Renderizado ---
+        
+        window.calculateTotal = () => {
+            let total = 0;
+            for (const id in window.cart) {
+                const product = getProductById(parseInt(id));
+                const quantity = window.cart[id];
+                if (product) {
+                    total += product.price * quantity;
+                }
+            }
+            return total;
+        };
+        
+        window.renderCart = () => {
+            const cartList = document.getElementById('cart-list');
+            const cartTotal = document.getElementById('cart-total');
+            const total = window.calculateTotal();
+            const cartEmpty = document.getElementById('cart-empty-message');
+            const checkoutButton = document.getElementById('checkout-button');
+            
+            cartList.innerHTML = '';
+            
+            const itemIds = Object.keys(window.cart).filter(id => window.cart[id] > 0);
+            
+            if (itemIds.length === 0) {
+                cartEmpty.classList.remove('hidden');
+                checkoutButton.disabled = true;
+                checkoutButton.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                cartEmpty.classList.add('hidden');
+                checkoutButton.disabled = false;
+                checkoutButton.classList.remove('opacity-50', 'cursor-not-allowed');
+
+                itemIds.forEach(id => {
+                    const product = getProductById(parseInt(id));
+                    const quantity = window.cart[id];
+                    const subtotal = product.price * quantity;
+                    
+                    const itemElement = document.createElement('div');
+                    itemElement.className = 'flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0';
+                    itemElement.innerHTML = `
+                        <div class="flex-grow">
+                            <p class="text-sm font-semibold">${product.name}</p>
+                            <p class="text-xs text-gray-500">${formatCurrency(product.price)} x ${quantity}</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm font-medium text-gray-700">${formatCurrency(subtotal)}</span>
+                            <button onclick="removeFromCart(${product.id})" class="text-red-500 hover:text-red-700 p-1 rounded-full bg-red-100 transition duration-150">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+                    cartList.appendChild(itemElement);
+                });
+            }
+            
+            cartTotal.textContent = formatCurrency(total);
+        };
+        
+        // --- Lógica del Checkout y WhatsApp ---
+
+        window.openCheckoutModal = () => {
+            document.getElementById('checkout-modal').classList.remove('hidden');
+            document.getElementById('checkout-total').textContent = window.calculateTotal();
+            document.getElementById('payment-cash-details').classList.add('hidden');
+        };
+
+        window.closeCheckoutModal = () => {
+            document.getElementById('checkout-modal').classList.add('hidden');
+        };
+
+        window.handlePaymentChange = () => {
+            const paymentMethod = document.getElementById('payment-method').value;
+            const cashDetails = document.getElementById('payment-cash-details');
+            
+            if (paymentMethod === 'Efectivo') {
+                cashDetails.classList.remove('hidden');
+            } else {
+                cashDetails.classList.add('hidden');
+            }
+        };
+
+        const generateWhatsAppMessage = (formData, total, paymentMethod) => {
+            const items = Object.keys(window.cart).filter(id => window.cart[id] > 0).map(id => {
+                const product = getProductById(parseInt(id));
+                const quantity = window.cart[id];
+                const subtotal = product.price * quantity;
+                return `${quantity}x ${product.name} (${formatCurrency(subtotal)})`;
+            }).join('\n- ');
+            
+            let message = `*🛍️ NUEVO PEDIDO DE ROPA ONLINE*\n\n`;
+            
+            // 1. Datos del Cliente
+            message += `*CLIENTE:*\n`;
+            message += `👤 Nombre: ${formData.name}\n`;
+            message += `📞 Teléfono: ${formData.phone}\n`;
+            message += `📍 Dirección: ${formData.address}\n\n`;
+            
+            // 2. Detalle del Pedido
+            message += `*DETALLE DEL PEDIDO:*\n`;
+            message += `- ${items}\n\n`;
+            
+            // 3. Resumen y Método de Pago
+            message += `*RESUMEN DE PAGO:*\n`;
+            message += `💵 Total a Pagar: ${formatCurrency(total)}\n`;
+            message += `💳 Método Elegido: *${paymentMethod}*\n\n`;
+
+            if (paymentMethod === 'Efectivo') {
+                const paysWith = parseInt(formData.paysWith || 0);
+                const change = paysWith - total;
+                
+                message += `*Cálculo de Vuelto:*\n`;
+                message += `💸 Cliente Paga con: ${formatCurrency(paysWith)}\n`;
+                message += `🔄 Vuelto a Entregar: ${formatCurrency(change)}\n`;
+            } else if (paymentMethod === 'Online') {
+                message += `*ESTADO: PAGO PENDIENTE (Verificar Transacción)*\n`;
+                message += `⚠️ Por favor, verifica la transacción en la pasarela antes de preparar el envío.\n`;
+            }
+            
+            return encodeURIComponent(message);
+        };
+
+        window.processCheckout = async () => {
+            const form = document.getElementById('checkout-form');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const formData = {
+                name: document.getElementById('customer-name').value,
+                address: document.getElementById('customer-address').value,
+                phone: document.getElementById('customer-phone').value,
+                paymentMethod: document.getElementById('payment-method').value,
+                paysWith: document.getElementById('pays-with').value,
+            };
+
+            const total = window.calculateTotal();
+            const message = generateWhatsAppMessage(formData, total, formData.paymentMethod);
+            const whatsappUrl = `https://wa.me/${RESTAURANT_PHONE}?text=${message}`;
+
+            window.closeCheckoutModal();
+            window.clearCart(); // Limpiar el carrito después de generar el pedido
+
+            if (formData.paymentMethod === 'Online') {
+                // Simulación de pasarela de pago
+                showNotification("Redirigiendo a pasarela de pago simulada...", 'info', 3000);
+                document.getElementById('confirmation-payment-method').textContent = "PAGO ONLINE (PENDIENTE)";
+                
+                // Mostrar el modal de confirmación con el botón de WhatsApp
+                setTimeout(() => {
+                    document.getElementById('confirmation-whatsapp-link').href = whatsappUrl;
+                    document.getElementById('confirmation-modal').classList.remove('hidden');
+                }, 3500);
+
+            } else {
+                // Pago en Efectivo: Redirección directa
+                window.open(whatsappUrl, '_blank');
+                showNotification("¡Pedido en Efectivo Enviado! Abrir WhatsApp para confirmar.", 'success');
+            }
+        };
+
+        // --- Sistema de Notificación ---
+        window.notificationCounter = 0;
+        window.showNotification = (message, type = 'success', duration = 2500) => {
+            const container = document.getElementById('notification-container');
+            const id = `notif-${window.notificationCounter++}`;
+            
+            let bgColor = 'bg-green-500';
+            let icon = 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'; // Check circle
+
+            if (type === 'error') {
+                bgColor = 'bg-red-500';
+                icon = 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'; // X circle
+            } else if (type === 'info') {
+                bgColor = 'bg-blue-500';
+                icon = 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'; // Info circle
+            }
+
+            const element = document.createElement('div');
+            element.id = id;
+            element.className = `flex items-center ${bgColor} text-white text-sm font-bold px-4 py-3 rounded shadow-lg mb-2 transition-all duration-300 transform opacity-0 translate-y-2`;
+            element.innerHTML = `
+                <svg class="fill-current w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${icon}" />
+                </svg>
+                <p>${message}</p>
+            `;
+            
+            container.appendChild(element);
+
+            // Animar entrada
+            setTimeout(() => {
+                element.classList.remove('opacity-0', 'translate-y-2');
+            }, 10);
+
+            // Animar salida y eliminar
+            setTimeout(() => {
+                element.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => {
+                    element.remove();
+                }, 300);
+            }, duration);
+        };
+
+
+        // --- Inicialización ---
+        window.onload = () => {
+            const productGrid = document.getElementById('product-grid');
+            
+            // Renderizar la grilla de productos
+            products.forEach(product => {
+                const card = document.createElement('div');
+                card.className = 'product-card bg-white rounded-xl shadow-lg overflow-hidden flex flex-col justify-between';
+                card.innerHTML = `
+                    <div>
+                        <img src="${product.img}" onerror="this.onerror=null; this.src='https://placehold.co/400x500/000000/FFFFFF?text=${product.name.replace(/[^a-zA-Z0-9]/g, '+')}'" alt="${product.name}" class="w-full h-64 object-cover">
+                        <div class="p-4">
+                            <h3 class="text-lg font-semibold text-gray-800">${product.name}</h3>
+                            <p class="text-2xl font-bold text-red-600 mt-1">${formatCurrency(product.price)}</p>
+                        </div>
+                    </div>
+                    <div class="p-4 pt-0">
+                        <button onclick="addToCart(${product.id})" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center justify-center space-x-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                            </svg>
+                            <span>Añadir al Carrito</span>
+                        </button>
+                    </div>
+                `;
+                productGrid.appendChild(card);
+            });
+            
+            // Inicializar el carrito (será sobreescrito por el listener de Firebase)
+            window.renderCart();
+        };
+    </script>
+</head>
+<body class="min-h-screen">
+
+    <!-- Contenedor de Notificaciones -->
+    <div id="notification-container" class="fixed top-4 right-4 z-50 w-full max-w-xs pointer-events-none">
+
+        <!-- Las notificaciones se insertarán aquí -->
+    </div>
+
+    <!-- Encabezado Principal -->
+    <header class="bg-white shadow-md sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <h1 class="text-3xl font-extrabold text-red-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                MODA RÁPIDA
+            </h1>
+            <span id="user-id-display" class="text-xs text-gray-500">Cargando ID...</span>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
+        
+        <!-- Columna de Productos -->
+        <div class="lg:col-span-3">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Nuestros Artículos Destacados</h2>
+            <div id="product-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <!-- Tarjetas de productos se inyectarán aquí por JavaScript -->
+            </div>
+        </div>
+
+        <!-- Columna del Carrito -->
+        <div class="lg:col-span-1 sticky top-20">
+            <div class="bg-white p-6 rounded-xl shadow-2xl border border-gray-100">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center justify-between">
+                    <span>🛒 Tu Carrito</span>
+                    <button onclick="clearCart()" class="text-sm text-red-500 hover:text-red-700 font-medium">Vaciar</button>
+                </h2>
+                
+                <div id="cart-list" class="divide-y divide-gray-200 min-h-[100px]">
+                    <!-- Ítems del carrito se inyectarán aquí -->
+                </div>
+                
+                <p id="cart-empty-message" class="text-center text-gray-500 py-6 text-sm">
+                    El carrito está vacío. ¡Añade algo!
+                </p>
+
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-lg font-semibold text-gray-800">TOTAL:</span>
+                        <span id="cart-total" class="text-3xl font-extrabold text-red-600">
+                            $0
+                        </span>
+                    </div>
+
+                    <button id="checkout-button" onclick="openCheckoutModal()" disabled class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg">
+                        Confirmar y Pagar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal de Checkout (Formulario de Datos) -->
+    <div id="checkout-modal" class="modal fixed inset-0 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 sm:p-8 transform transition-all duration-300">
+            <h3 class="text-2xl font-bold text-gray-800 mb-6">Detalles del Pedido y Pago</h3>
+
+            <form id="checkout-form" onsubmit="event.preventDefault(); processCheckout();">
+                <!-- Seccion Datos del Cliente -->
+                <div class="mb-6 border-b border-gray-200 pb-4">
+                    <p class="text-lg font-semibold text-gray-700 mb-3">Datos de Envío</p>
+                    <div class="grid grid-cols-1 gap-4">
+                        <input type="text" id="customer-name" placeholder="Tu Nombre Completo" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500">
+
+                        <input type="tel" id="customer-phone" placeholder="Tu Teléfono (WhatsApp)" required pattern="[0-9+ ]{8,}" title="Introduce un número de teléfono válido" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500">
+                        <textarea id="customer-address" placeholder="Dirección de Envío Completa" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"></textarea>
+                    </div>
+                </div>
+
+                <!-- Seccion Opciones de Pago -->
+                <div class="mb-8">
+                    <p class="text-lg font-semibold text-gray-700 mb-3">Método de Pago</p>
+                    <select id="payment-method" onchange="handlePaymentChange()" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 appearance-none bg-white">
+                        <option value="" disabled selected>Selecciona una opción</option>
+                        <option value="Efectivo">Efectivo (Pago al Recibir)</option>
+                        <option value="Online">Online (Simulado - Transferencia/Tarjeta)</option>
+                    </select>
+
+                    <!-- Detalle para Pago en Efectivo (Vuelto) -->
+                    <div id="payment-cash-details" class="hidden mt-4 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                        <label for="pays-with" class="block text-sm font-medium text-yellow-800 mb-2">¿Con cuánto pagarás para calcular el vuelto?</label>
+                        <input type="number" id="pays-with" placeholder="Monto de pago (ej: 50000)" min="0" class="w-full p-3 border border-yellow-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500 bg-white">
+                        <p class="mt-2 text-xs text-yellow-700">Total a Pagar: <span class="font-bold" id="checkout-total"></span></p>
+                    </div>
+                </div>
+                
+                <!-- Botones de Acción -->
+                <div class="flex justify-end space-x-4">
+                    <button type="button" onclick="closeCheckoutModal()" class="px-6 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition duration-150">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition duration-150 shadow-md">
+                        Generar Pedido
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación Post-Pago Online -->
+    <div id="confirmation-modal" class="modal fixed inset-0 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 sm:p-8 text-center transform transition-all duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-blue-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c1.657 0 3 .895 3 2s-1.343 2-3 2a3 3 0 00-3 2c0 1.105.343 2 3 2m-3-2V9m2 2V9m0 0H9m5 0h2m-2-2h2m-4 8h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">¡Transacción Simulada Exitosa!</h3>
+            <p class="text-gray-600 mb-4">Tu pedido ha sido registrado con el estado de pago:</p>
+            <p id="confirmation-payment-method" class="text-2xl font-extrabold text-red-600 mb-6"></p>
+
+            <p class="text-sm text-gray-700 mb-6 bg-red-50 p-3 rounded-lg">
+                Ahora, por favor, haz clic en el botón para enviar el comprobante y los detalles del pedido a nuestro WhatsApp y finalizar la compra.
+            </p>
+
+            <a id="confirmation-whatsapp-link" target="_blank" onclick="document.getElementById('confirmation-modal').classList.add('hidden');" class="inline-flex items-center justify-center w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-lg text-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                Enviar a WhatsApp
+            </a>
+        </div>
+    </div>
+</body>
+</html>
