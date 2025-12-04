@@ -23,6 +23,10 @@
             background-color: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(5px);
         }
+        .tab-active {
+            border-bottom: 3px solid #dc2626; /* Rojo 600 */
+            color: #dc2626; /* Rojo 600 */
+        }
     </style>
     <script>
         // --- Constantes y Estado Global ---
@@ -33,16 +37,22 @@
         // Carrito inicializado vacío (gestión en memoria)
         window.cart = {};
         
-        // Datos de los productos de la tienda de ropa
+        // Datos de los productos de la tienda de ropa - ¡AÑADIDA LA PROPIEDAD 'category'!
         const products = [
-            { id: 1, name: 'Camiseta Oversize "Lunar"', price: 15000, img: 'https://placehold.co/400x500/000000/FFFFFF?text=Camiseta+Oversize' },
-            { id: 2, name: 'Jeans Distressed Clásicos', price: 35000, img: 'https://placehold.co/400x500/3B82F6/FFFFFF?text=Jeans+Rotos' },
-            { id: 3, name: 'Chaqueta de Cuero Vintage', price: 65000, img: 'https://placehold.co/400x500/444444/FFFFFF?text=Chaqueta+Cuero' },
-            { id: 4, name: 'Sudadera con Capucha "Vibe"', price: 22000, img: 'https://placehold.co/400x500/EF4444/FFFFFF?text=Hoodie+Vibe' },
-            { id: 5, name: 'Falda Plisada Midi Negra', price: 28000, img: 'https://placehold.co/400x500/10B981/FFFFFF?text=Falda+Plisada' },
-            { id: 6, name: 'Zapatillas Urbanas Premium', price: 40000, img: 'https://placehold.co/400x500/F97316/FFFFFF?text=Zapatillas' },
+            { id: 1, name: 'Camiseta Oversize "Lunar"', price: 15000, category: 'Remeras', img: 'https://placehold.co/400x500/000000/FFFFFF?text=Camiseta+Oversize' },
+            { id: 2, name: 'Jeans Distressed Clásicos', price: 35000, category: 'Jeans', img: 'https://placehold.co/400x500/3B82F6/FFFFFF?text=Jeans+Rotos' },
+            { id: 3, name: 'Chaqueta de Cuero Vintage', price: 65000, category: 'Chaquetas', img: 'https://placehold.co/400x500/444444/FFFFFF?text=Chaqueta+Cuero' },
+            { id: 4, name: 'Sudadera con Capucha "Vibe"', price: 22000, category: 'Remeras', img: 'https://placehold.co/400x500/EF4444/FFFFFF?text=Hoodie+Vibe' },
+            { id: 5, name: 'Falda Plisada Midi Negra', price: 28000, category: 'Pantalones', img: 'https://placehold.co/400x500/10B981/FFFFFF?text=Falda+Plisada' },
+            { id: 6, name: 'Zapatillas Urbanas Premium', price: 40000, category: 'Zapatillas', img: 'https://placehold.co/400x500/F97316/FFFFFF?text=Zapatillas' },
+            { id: 7, name: 'Remera Gráfica Retro', price: 12000, category: 'Remeras', img: 'https://placehold.co/400x500/374151/FFFFFF?text=Remera+Retro' },
+            { id: 8, name: 'Jogger de Algodón Básico', price: 25000, category: 'Pantalones', img: 'https://placehold.co/400x500/9CA3AF/FFFFFF?text=Jogger+B%C3%A1sico' },
+            { id: 9, name: 'Jeans Slim Fit Negro', price: 32000, category: 'Jeans', img: 'https://placehold.co/400x500/1F2937/FFFFFF?text=Jeans+Slim' },
         ];
         
+        // Categoría activa por defecto (Mostrar todos)
+        let activeCategory = 'Todos';
+
         // --- Funciones de Utilidad ---
 
         const formatCurrency = (amount) => {
@@ -146,14 +156,85 @@
             
             cartTotal.textContent = formatCurrency(total);
         };
-        
-        // --- Lógica del Checkout y WhatsApp ---
+
+        // --- Lógica de Categorías (NUEVO) ---
+
+        window.renderProducts = () => {
+            const productGrid = document.getElementById('product-grid');
+            productGrid.innerHTML = ''; // Limpiar la grilla
+            
+            // Determinar qué productos mostrar
+            const filteredProducts = activeCategory === 'Todos' 
+                ? products 
+                : products.filter(p => p.category === activeCategory);
+            
+            // Actualizar título de la sección
+            document.getElementById('product-grid-title').textContent = activeCategory === 'Todos' 
+                ? 'Nuestros Artículos Destacados' 
+                : `Artículos en: ${activeCategory}`;
+
+            if (filteredProducts.length === 0) {
+                 productGrid.innerHTML = '<p class="text-center text-gray-500 py-12 col-span-full">No hay productos en esta categoría por el momento.</p>';
+                 return;
+            }
+
+            // Renderizar los productos filtrados
+            filteredProducts.forEach(product => {
+                const card = document.createElement('div');
+                card.className = 'product-card bg-white rounded-xl shadow-lg overflow-hidden flex flex-col justify-between';
+                card.innerHTML = `
+                    <div>
+                        <img src="${product.img}" onerror="this.onerror=null; this.src='https://placehold.co/400x500/000000/FFFFFF?text=${product.name.replace(/[^a-zA-Z0-9]/g, '+')}'" alt="${product.name}" class="w-full h-64 object-cover">
+                        <div class="p-4">
+                            <h3 class="text-lg font-semibold text-gray-800">${product.name}</h3>
+                            <span class="inline-block bg-gray-100 text-gray-600 text-xs font-medium px-2.5 py-0.5 rounded-full mb-1">${product.category}</span>
+                            <p class="text-2xl font-bold text-red-600 mt-1">${formatCurrency(product.price)}</p>
+                        </div>
+                    </div>
+                    <div class="p-4 pt-0">
+                        <button onclick="addToCart(${product.id})" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center justify-center space-x-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                            </svg>
+                            <span>Añadir al Carrito</span>
+                        </button>
+                    </div>
+                `;
+                productGrid.appendChild(card);
+            });
+            updateCategoryTabs();
+        };
+
+        window.changeCategory = (categoryName) => {
+            activeCategory = categoryName;
+            window.renderProducts();
+        };
+
+        const updateCategoryTabs = () => {
+            const tabsContainer = document.getElementById('category-tabs');
+            const categories = ['Todos', ...new Set(products.map(p => p.category))]; // Obtener categorías únicas
+            
+            tabsContainer.innerHTML = '';
+            
+            categories.forEach(category => {
+                const button = document.createElement('button');
+                button.textContent = category;
+                button.className = `px-4 py-2 text-sm font-semibold transition duration-200 hover:text-red-600 ${category === activeCategory ? 'tab-active' : 'text-gray-600'}`;
+                button.onclick = () => window.changeCategory(category);
+                tabsContainer.appendChild(button);
+            });
+        };
+
+
+        // --- Lógica del Checkout y WhatsApp (MANTENIDA) ---
+        // ... (Tu código de checkout, openCheckoutModal, closeCheckoutModal, handlePaymentChange, generateWhatsAppMessage, processCheckout)
+        // ... (Se mantiene igual, solo se copiaron las partes relevantes por brevedad)
 
         window.openCheckoutModal = () => {
             document.getElementById('checkout-modal').classList.remove('hidden');
             document.getElementById('checkout-total').textContent = formatCurrency(window.calculateTotal());
             document.getElementById('payment-cash-details').classList.add('hidden');
-            document.getElementById('confirmation-modal').classList.add('hidden'); // Ocultar confirmación previa si estaba visible
+            document.getElementById('confirmation-modal').classList.add('hidden'); 
         };
 
         window.closeCheckoutModal = () => {
@@ -252,7 +333,7 @@
             }
         };
 
-        // --- Lógica del Carrusel de Novedades (Revista) ---
+        // --- Lógica del Carrusel de Novedades (Revista) (MANTENIDA) ---
         let currentSlide = 0;
         let slideInterval;
         let totalSlides = 0;
@@ -304,8 +385,7 @@
             }
         };
 
-
-        // --- Sistema de Notificación ---
+        // --- Sistema de Notificación (MANTENIDA) ---
         window.notificationCounter = 0;
         window.showNotification = (message, type = 'success', duration = 2500) => {
             const container = document.getElementById('notification-container');
@@ -349,60 +429,32 @@
         };
 
 
-        // --- Inicialización ---
+        // --- Inicialización (MODIFICADA) ---
         window.onload = () => {
-            const productGrid = document.getElementById('product-grid');
-            
-            // Renderizar la grilla de productos
-            products.forEach(product => {
-                const card = document.createElement('div');
-                card.className = 'product-card bg-white rounded-xl shadow-lg overflow-hidden flex flex-col justify-between';
-                card.innerHTML = `
-                    <div>
-                        <img src="${product.img}" onerror="this.onerror=null; this.src='https://placehold.co/400x500/000000/FFFFFF?text=${product.name.replace(/[^a-zA-Z0-9]/g, '+')}'" alt="${product.name}" class="w-full h-64 object-cover">
-                        <div class="p-4">
-                            <h3 class="text-lg font-semibold text-gray-800">${product.name}</h3>
-                            <p class="text-2xl font-bold text-red-600 mt-1">${formatCurrency(product.price)}</p>
-                        </div>
-                    </div>
-                    <div class="p-4 pt-0">
-                        <button onclick="addToCart(${product.id})" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center justify-center space-x-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                            </svg>
-                            <span>Añadir al Carrito</span>
-                        </button>
-                    </div>
-                `;
-                productGrid.appendChild(card);
-            });
             
             // Inicializar el carrito
             window.renderCart();
 
-            // Inicializar el carrusel (NUEVO)
+            // Inicializar el carrusel
             const prevBtn = document.getElementById('prev-btn');
             const nextBtn = document.getElementById('next-btn');
             if (prevBtn && nextBtn) {
                 prevBtn.onclick = () => { prevSlide(); startAutoSlide(); };
                 nextBtn.onclick = () => { nextSlide(); startAutoSlide(); };
             }
-
-            // Llamar a goToSlide(0) para establecer el estado inicial y los puntos
             goToSlide(0); 
-            // Iniciar el auto-deslizamiento
             startAutoSlide();
+            
+            // Renderizar la grilla de productos y las pestañas por primera vez (¡NUEVO!)
+            window.renderProducts();
         };
     </script>
 </head>
 <body class="min-h-screen">
 
-    <!-- Contenedor de Notificaciones -->
     <div id="notification-container" class="fixed top-4 right-4 z-50 w-full max-w-xs pointer-events-none">
-        <!-- Las notificaciones se insertarán aquí -->
-    </div>
+        </div>
 
-    <!-- Encabezado Principal -->
     <header class="bg-white shadow-md sticky top-0 z-10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
             <h1 class="text-3xl font-extrabold text-red-600">
@@ -414,13 +466,10 @@
         </div>
     </header>
 
-    <!-- Sección de Novedades (Estilo Revista) -->
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
         <h2 class="text-3xl font-extrabold text-gray-800 mb-4">✨ Novedades Exclusivas</h2>
         <div id="magazine-carousel" class="relative overflow-hidden rounded-xl shadow-2xl bg-white h-[400px] md:h-[500px]">
-            <!-- Pista del Carrusel (se mueve con JS) -->
             <div id="carousel-track" class="h-full flex transition-transform duration-500 ease-in-out">
-                <!-- Slide 1: Colección Invierno Urbano -->
                 <div class="carousel-slide flex-shrink-0 w-full h-full bg-cover bg-center flex items-center p-8 md:p-16 text-white" style="background-image: url('https://placehold.co/1200x500/A855F7/FFFFFF?text=Nueva+Colecci%C3%B3n+Invierno');">
                     <div class="bg-black bg-opacity-40 p-6 rounded-lg max-w-lg">
                         <p class="text-sm font-light uppercase tracking-widest text-yellow-300">Edición Limitada</p>
@@ -429,7 +478,6 @@
                         <a href="#product-grid-anchor" class="mt-6 inline-block bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-full transition duration-300 text-sm uppercase tracking-wider">Ver Ahora</a>
                     </div>
                 </div>
-                <!-- Slide 2: Ofertas Flash -->
                 <div class="carousel-slide flex-shrink-0 w-full h-full bg-cover bg-center flex items-center justify-end p-8 md:p-16 text-white" style="background-image: url('https://placehold.co/1200x500/EC4899/FFFFFF?text=Ofertas+Flash+en+Accesorios');">
                     <div class="bg-black bg-opacity-40 p-6 rounded-lg max-w-lg text-right">
                         <p class="text-sm font-light uppercase tracking-widest text-teal-300">OFERTA FLASH</p>
@@ -438,7 +486,6 @@
                         <a href="#product-grid-anchor" class="mt-6 inline-block bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-8 rounded-full transition duration-300 text-sm uppercase tracking-wider">Comprar</a>
                     </div>
                 </div>
-                <!-- Slide 3: Tendencias Jeans -->
                 <div class="carousel-slide flex-shrink-0 w-full h-full bg-cover bg-center flex items-center p-8 md:p-16 text-white" style="background-image: url('https://placehold.co/1200x500/1D4ED8/FFFFFF?text=Tendencias+Jeans+2025');">
                     <div class="bg-black bg-opacity-40 p-6 rounded-lg max-w-lg">
                         <p class="text-sm font-light uppercase tracking-widest text-red-300">Tendencias 2025</p>
@@ -448,31 +495,29 @@
                     </div>
                 </div>
             </div>
-            <!-- Navegación Prev/Next -->
             <button id="prev-btn" class="absolute top-1/2 left-4 transform -translate-y-1/2 bg-white/50 hover:bg-white/80 text-gray-800 p-3 rounded-full transition duration-300 hidden md:block z-10">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
             </button>
             <button id="next-btn" class="absolute top-1/2 right-4 transform -translate-y-1/2 bg-white/50 hover:bg-white/80 text-gray-800 p-3 rounded-full transition duration-300 hidden md:block z-10">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
             </button>
-            <!-- Puntos indicadores -->
             <div id="carousel-dots" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-10">
-                <!-- Los puntos se inyectarán aquí por JS -->
-            </div>
+                </div>
         </div>
     </section>
 
     <main class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 pt-0 grid grid-cols-1 lg:grid-cols-4 gap-8">
         
-        <!-- Columna de Productos -->
         <div class="lg:col-span-3">
-            <h2 id="product-grid-anchor" class="text-2xl font-bold text-gray-800 mb-6">Nuestros Artículos Destacados</h2>
+            <h2 id="product-grid-title" class="text-2xl font-bold text-gray-800 mb-4">Nuestros Artículos Destacados</h2>
+            
+            <div id="category-tabs" class="flex flex-wrap gap-4 border-b border-gray-200 mb-6 bg-white p-3 rounded-lg shadow-sm">
+                </div>
+            
             <div id="product-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                <!-- Tarjetas de productos se inyectarán aquí por JavaScript -->
-            </div>
+                </div>
         </div>
 
-        <!-- Columna del Carrito -->
         <div class="lg:col-span-1 sticky top-20">
             <div class="bg-white p-6 rounded-xl shadow-2xl border border-gray-100">
                 <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center justify-between">
@@ -481,8 +526,7 @@
                 </h2>
                 
                 <div id="cart-list" class="divide-y divide-gray-200 min-h-[100px]">
-                    <!-- Ítems del carrito se inyectarán aquí -->
-                </div>
+                    </div>
                 
                 <p id="cart-empty-message" class="text-center text-gray-500 py-6 text-sm">
                     El carrito está vacío. ¡Añade algo!
@@ -504,13 +548,11 @@
         </div>
     </main>
 
-    <!-- Modal de Checkout (Formulario de Datos) -->
     <div id="checkout-modal" class="modal fixed inset-0 hidden items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 sm:p-8 transform transition-all duration-300">
             <h3 class="text-2xl font-bold text-gray-800 mb-6">Detalles del Pedido y Pago</h3>
 
             <form id="checkout-form" onsubmit="event.preventDefault(); processCheckout();">
-                <!-- Seccion Datos del Cliente -->
                 <div class="mb-6 border-b border-gray-200 pb-4">
                     <p class="text-lg font-semibold text-gray-700 mb-3">Datos de Envío</p>
                     <div class="grid grid-cols-1 gap-4">
@@ -520,7 +562,6 @@
                     </div>
                 </div>
 
-                <!-- Seccion Opciones de Pago -->
                 <div class="mb-8">
                     <p class="text-lg font-semibold text-gray-700 mb-3">Método de Pago</p>
                     <select id="payment-method" onchange="handlePaymentChange()" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 appearance-none bg-white">
@@ -529,7 +570,6 @@
                         <option value="Online">Online (Simulado - Transferencia/Tarjeta)</option>
                     </select>
 
-                    <!-- Detalle para Pago en Efectivo (Vuelto) -->
                     <div id="payment-cash-details" class="hidden mt-4 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                         <label for="pays-with" class="block text-sm font-medium text-yellow-800 mb-2">¿Con cuánto pagarás para calcular el vuelto?</label>
                         <input type="number" id="pays-with" placeholder="Monto de pago (ej: 50000)" min="0" class="w-full p-3 border border-yellow-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500 bg-white">
@@ -537,7 +577,6 @@
                     </div>
                 </div>
                 
-                <!-- Botones de Acción -->
                 <div class="flex justify-end space-x-4">
                     <button type="button" onclick="closeCheckoutModal()" class="px-6 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition duration-150">
                         Cancelar
@@ -550,7 +589,6 @@
         </div>
     </div>
 
-    <!-- Modal de Confirmación Post-Pago Online -->
     <div id="confirmation-modal" class="modal fixed inset-0 hidden items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 sm:p-8 text-center transform transition-all duration-300">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-blue-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
