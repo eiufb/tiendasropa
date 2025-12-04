@@ -3,54 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tienda de Ropa | Checkout WhatsApp Rápido</title>
+    <title>MODA RÁPIDA | Checkout WhatsApp/MP</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f7f7f7;
+            background-color: #f3f4f6; /* Gris más suave */
         }
         .product-card {
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .product-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            transform: translateY(-8px); /* Más impacto */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
-        /* Estilo para el modal */
+        /* Estilo para el modal con transición y blur */
         .modal {
-            background-color: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(5px);
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            transition: opacity 0.3s ease;
         }
         .tab-active {
             border-bottom: 3px solid #dc2626; /* Rojo 600 */
             color: #dc2626; /* Rojo 600 */
         }
+        /* Permite scroll horizontal en pestañas para móvil */
+        #category-tabs-wrapper {
+            -ms-overflow-style: none; /* IE and Edge */
+            scrollbar-width: none; /* Firefox */
+        }
+        #category-tabs-wrapper::-webkit-scrollbar {
+            display: none; /* Chrome, Safari and Opera */
+        }
     </style>
     <script>
         // --- Constantes y Estado Global ---
         
-        // Número de WhatsApp del vendedor (¡REEMPLAZAR!)
-        const RESTAURANT_PHONE = "5493511112222"; // Ejemplo: 549XXXXXX (código de país + área + número)
+        // 📞 1. NÚMERO DE WHATSAPP DEL VENDEDOR (¡REEMPLAZAR!)
+        // Formato: código de país + área + número. Ej: +5493541214553
+        const RESTAURANT_PHONE = "+5493541214553"; 
 
-        // Carrito inicializado vacío (gestión en memoria)
+        // 💳 2. ENLACE DE PAGO DE MERCADO PAGO (¡REEMPLAZAR!)
+        const MERCADO_PAGO_LINK = "https://link.mercadopago.com.ar/ejemplopagoqr"; 
+        
         window.cart = {};
         
-        // Datos de los productos de la tienda de ropa - ¡AÑADIDA LA PROPIEDAD 'category'!
         const products = [
             { id: 1, name: 'Camiseta Oversize "Lunar"', price: 15000, category: 'Remeras', img: 'https://placehold.co/400x500/000000/FFFFFF?text=Camiseta+Oversize' },
             { id: 2, name: 'Jeans Distressed Clásicos', price: 35000, category: 'Jeans', img: 'https://placehold.co/400x500/3B82F6/FFFFFF?text=Jeans+Rotos' },
             { id: 3, name: 'Chaqueta de Cuero Vintage', price: 65000, category: 'Chaquetas', img: 'https://placehold.co/400x500/444444/FFFFFF?text=Chaqueta+Cuero' },
-            { id: 4, name: 'Sudadera con Capucha "Vibe"', price: 22000, category: 'Remeras', img: 'https://placehold.co/400x500/EF4444/FFFFFF?text=Hoodie+Vibe' },
-            { id: 5, name: 'Falda Plisada Midi Negra', price: 28000, category: 'Pantalones', img: 'https://placehold.co/400x500/10B981/FFFFFF?text=Falda+Plisada' },
-            { id: 6, name: 'Zapatillas Urbanas Premium', price: 40000, category: 'Zapatillas', img: 'https://placehold.co/400x500/F97316/FFFFFF?text=Zapatillas' },
+            { id: 4, name: 'Sudadera con Capucha "Vibe"', price: 22000, category: 'Buzos', img: 'https://placehold.co/400x500/EF4444/FFFFFF?text=Hoodie+Vibe' },
+            { id: 5, name: 'Falda Plisada Midi Negra', price: 28000, category: 'Faldas', img: 'https://placehold.co/400x500/10B981/FFFFFF?text=Falda+Plisada' },
+            { id: 6, name: 'Zapatillas Urbanas Premium', price: 40000, category: 'Calzado', img: 'https://placehold.co/400x500/F97316/FFFFFF?text=Zapatillas' },
             { id: 7, name: 'Remera Gráfica Retro', price: 12000, category: 'Remeras', img: 'https://placehold.co/400x500/374151/FFFFFF?text=Remera+Retro' },
             { id: 8, name: 'Jogger de Algodón Básico', price: 25000, category: 'Pantalones', img: 'https://placehold.co/400x500/9CA3AF/FFFFFF?text=Jogger+B%C3%A1sico' },
             { id: 9, name: 'Jeans Slim Fit Negro', price: 32000, category: 'Jeans', img: 'https://placehold.co/400x500/1F2937/FFFFFF?text=Jeans+Slim' },
+            { id: 10, name: 'Saco de Lana Cruzado', price: 45000, category: 'Chaquetas', img: 'https://placehold.co/400x500/5B21B6/FFFFFF?text=Saco+Lana' },
         ];
         
-        // Categoría activa por defecto (Mostrar todos)
         let activeCategory = 'Todos';
 
         // --- Funciones de Utilidad ---
@@ -65,15 +76,14 @@
 
         const getProductById = (id) => products.find(p => p.id === id);
         
-        // --- Funciones del Carrito (Solo en Memoria) ---
+        // --- Funciones del Carrito ---
 
         window.addToCart = (productId) => {
             const id = productId.toString();
-            // Actualizar el carrito en memoria
             window.cart[id] = (window.cart[id] || 0) + 1;
             
-            window.renderCart(); // Volver a dibujar el carrito
-            showNotification(`${getProductById(productId).name} agregado al carrito!`);
+            window.renderCart(); 
+            showNotification(`${getProductById(productId).name} agregado al carrito.`, 'success');
         };
 
         window.removeFromCart = (productId) => {
@@ -87,12 +97,14 @@
                 return;
             }
 
-            window.renderCart(); // Volver a dibujar el carrito
+            window.renderCart(); 
+            showNotification(`Cantidad de ${getProductById(productId).name} reducida.`, 'info');
         };
         
         window.clearCart = () => {
-            window.cart = {}; // Vaciar el carrito en memoria
+            window.cart = {}; 
             window.renderCart();
+            showNotification("Carrito vaciado.", 'info');
         };
         
         // --- Funciones de Renderizado ---
@@ -123,11 +135,11 @@
             if (itemIds.length === 0) {
                 cartEmpty.classList.remove('hidden');
                 checkoutButton.disabled = true;
-                checkoutButton.classList.add('opacity-50', 'cursor-not-allowed');
+                checkoutButton.classList.add('opacity-50', 'cursor-not-allowed', 'shadow-none');
             } else {
                 cartEmpty.classList.add('hidden');
                 checkoutButton.disabled = false;
-                checkoutButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                checkoutButton.classList.remove('opacity-50', 'cursor-not-allowed', 'shadow-none');
 
                 itemIds.forEach(id => {
                     const product = getProductById(parseInt(id));
@@ -135,15 +147,15 @@
                     const subtotal = product.price * quantity;
                     
                     const itemElement = document.createElement('div');
-                    itemElement.className = 'flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0';
+                    itemElement.className = 'flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0';
                     itemElement.innerHTML = `
                         <div class="flex-grow">
-                            <p class="text-sm font-semibold">${product.name}</p>
+                            <p class="text-sm font-semibold text-gray-800 truncate">${product.name}</p>
                             <p class="text-xs text-gray-500">${formatCurrency(product.price)} x ${quantity}</p>
                         </div>
-                        <div class="flex items-center space-x-2">
+                        <div class="flex items-center space-x-2 flex-shrink-0">
                             <span class="text-sm font-medium text-gray-700">${formatCurrency(subtotal)}</span>
-                            <button onclick="removeFromCart(${product.id})" class="text-red-500 hover:text-red-700 p-1 rounded-full bg-red-100 transition duration-150">
+                            <button onclick="removeFromCart(${product.id})" class="text-red-600 hover:text-red-800 p-1 rounded-full bg-red-100 hover:bg-red-200 transition duration-150 flex-shrink-0">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
                                 </svg>
@@ -157,42 +169,51 @@
             cartTotal.textContent = formatCurrency(total);
         };
 
-        // --- Lógica de Categorías (NUEVO) ---
+        // --- Lógica de Categorías ---
 
         window.renderProducts = () => {
             const productGrid = document.getElementById('product-grid');
-            productGrid.innerHTML = ''; // Limpiar la grilla
+            productGrid.innerHTML = ''; 
             
-            // Determinar qué productos mostrar
             const filteredProducts = activeCategory === 'Todos' 
                 ? products 
                 : products.filter(p => p.category === activeCategory);
             
-            // Actualizar título de la sección
             document.getElementById('product-grid-title').textContent = activeCategory === 'Todos' 
-                ? 'Nuestros Artículos Destacados' 
+                ? '🛍️ Nuestros Artículos Destacados' 
                 : `Artículos en: ${activeCategory}`;
 
             if (filteredProducts.length === 0) {
-                 productGrid.innerHTML = '<p class="text-center text-gray-500 py-12 col-span-full">No hay productos en esta categoría por el momento.</p>';
-                 return;
+                productGrid.innerHTML = '<p class="text-center text-gray-500 py-12 col-span-full">No hay productos en esta categoría por el momento.</p>';
+                return;
             }
 
-            // Renderizar los productos filtrados
             filteredProducts.forEach(product => {
                 const card = document.createElement('div');
-                card.className = 'product-card bg-white rounded-xl shadow-lg overflow-hidden flex flex-col justify-between';
+                card.className = 'product-card bg-white rounded-xl shadow-xl overflow-hidden flex flex-col justify-between';
+                
+                // MODIFICACIÓN AQUÍ: Agregado onclick="openImageModal" y cursor-pointer a la imagen
                 card.innerHTML = `
                     <div>
-                        <img src="${product.img}" onerror="this.onerror=null; this.src='https://placehold.co/400x500/000000/FFFFFF?text=${product.name.replace(/[^a-zA-Z0-9]/g, '+')}'" alt="${product.name}" class="w-full h-64 object-cover">
+                        <div class="overflow-hidden relative group">
+                            <img 
+                                onclick="openImageModal('${product.img}')" 
+                                src="${product.img}" 
+                                onerror="this.onerror=null; this.src='https://placehold.co/400x500/374151/FFFFFF?text=${product.name.replace(/[^a-zA-Z0-9]/g, '+')}'" 
+                                alt="${product.name}" 
+                                class="w-full h-72 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                title="Click para ampliar"
+                            >
+                            <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300 pointer-events-none"></div>
+                        </div>
                         <div class="p-4">
-                            <h3 class="text-lg font-semibold text-gray-800">${product.name}</h3>
-                            <span class="inline-block bg-gray-100 text-gray-600 text-xs font-medium px-2.5 py-0.5 rounded-full mb-1">${product.category}</span>
-                            <p class="text-2xl font-bold text-red-600 mt-1">${formatCurrency(product.price)}</p>
+                            <span class="inline-block bg-gray-100 text-gray-600 text-xs font-semibold px-3 py-1 rounded-full mb-2">${product.category}</span>
+                            <h3 class="text-xl font-bold text-gray-900">${product.name}</h3>
+                            <p class="text-3xl font-extrabold text-red-600 mt-2">${formatCurrency(product.price)}</p>
                         </div>
                     </div>
                     <div class="p-4 pt-0">
-                        <button onclick="addToCart(${product.id})" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center justify-center space-x-2">
+                        <button onclick="addToCart(${product.id})" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl transition duration-300 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-[1.01]">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                             </svg>
@@ -212,33 +233,35 @@
 
         const updateCategoryTabs = () => {
             const tabsContainer = document.getElementById('category-tabs');
-            const categories = ['Todos', ...new Set(products.map(p => p.category))]; // Obtener categorías únicas
+            // Obtener categorías únicas y añadir 'Todos'
+            const categories = ['Todos', ...new Set(products.map(p => p.category))].sort(); 
             
             tabsContainer.innerHTML = '';
             
             categories.forEach(category => {
                 const button = document.createElement('button');
                 button.textContent = category;
-                button.className = `px-4 py-2 text-sm font-semibold transition duration-200 hover:text-red-600 ${category === activeCategory ? 'tab-active' : 'text-gray-600'}`;
+                button.className = `flex-shrink-0 px-4 py-2 text-base font-semibold transition duration-200 ease-in-out whitespace-nowrap ${category === activeCategory ? 'tab-active text-red-600' : 'text-gray-600 hover:text-red-500'}`;
                 button.onclick = () => window.changeCategory(category);
                 tabsContainer.appendChild(button);
             });
         };
 
 
-        // --- Lógica del Checkout y WhatsApp (MANTENIDA) ---
-        // ... (Tu código de checkout, openCheckoutModal, closeCheckoutModal, handlePaymentChange, generateWhatsAppMessage, processCheckout)
-        // ... (Se mantiene igual, solo se copiaron las partes relevantes por brevedad)
+        // --- Lógica del Checkout y WhatsApp ---
 
         window.openCheckoutModal = () => {
-            document.getElementById('checkout-modal').classList.remove('hidden');
+            const modal = document.getElementById('checkout-modal');
+            modal.classList.remove('hidden');
             document.getElementById('checkout-total').textContent = formatCurrency(window.calculateTotal());
             document.getElementById('payment-cash-details').classList.add('hidden');
             document.getElementById('confirmation-modal').classList.add('hidden'); 
+            document.body.classList.add('overflow-hidden'); // Evitar scroll del body
         };
 
         window.closeCheckoutModal = () => {
             document.getElementById('checkout-modal').classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
         };
 
         window.handlePaymentChange = () => {
@@ -247,8 +270,10 @@
             
             if (paymentMethod === 'Efectivo') {
                 cashDetails.classList.remove('hidden');
+                document.getElementById('pays-with').setAttribute('required', 'required');
             } else {
                 cashDetails.classList.add('hidden');
+                document.getElementById('pays-with').removeAttribute('required');
             }
         };
 
@@ -257,13 +282,13 @@
                 const product = getProductById(parseInt(id));
                 const quantity = window.cart[id];
                 const subtotal = product.price * quantity;
-                return `${quantity}x ${product.name} (${formatCurrency(subtotal)})`;
+                return `(${quantity}x) ${product.name} -> ${formatCurrency(subtotal)}`;
             }).join('\n- ');
             
             let message = `*🛍️ NUEVO PEDIDO DE ROPA ONLINE*\n\n`;
             
             // 1. Datos del Cliente
-            message += `*CLIENTE:*\n`;
+            message += `*DATOS DEL CLIENTE:*\n`;
             message += `👤 Nombre: ${formData.name}\n`;
             message += `📞 Teléfono: ${formData.phone}\n`;
             message += `📍 Dirección: ${formData.address}\n\n`;
@@ -281,17 +306,22 @@
                 const paysWith = parseInt(formData.paysWith || 0);
                 const change = paysWith - total;
                 
-                message += `*Cálculo de Vuelto:*\n`;
-                message += `💸 Cliente Paga con: ${formatCurrency(paysWith)}\n`;
-                message += `🔄 Vuelto a Entregar: ${formatCurrency(change)}\n`;
+                // Solo incluir detalles de vuelto si se especificó el pago
+                if (paysWith > 0) {
+                      message += `*Cálculo de Vuelto:*\n`;
+                      message += `💸 Cliente Paga con: ${formatCurrency(paysWith)}\n`;
+                      message += `🔄 Vuelto a Entregar: ${formatCurrency(change)}\n`;
+                }
+               
             } else if (paymentMethod === 'Online') {
-                message += `*ESTADO: PAGO PENDIENTE (Verificar Transacción)*\n`;
-                message += `⚠️ Por favor, verifica la transacción en la pasarela antes de preparar el envío.\n`;
+                message += `*ESTADO: PAGO POR TRANSFERENCIA/MP (COMPROBANTE PENDIENTE)*\n`;
+                message += `✅ Ya he realizado el pago a través del link de Mercado Pago. Adjuntaré la captura de mi comprobante en este chat.\n`;
             }
             
             return encodeURIComponent(message);
         };
 
+        // --- FUNCIÓN processCheckout ---
         window.processCheckout = async () => {
             const form = document.getElementById('checkout-form');
             if (!form.checkValidity()) {
@@ -299,6 +329,7 @@
                 return;
             }
 
+            const total = window.calculateTotal();
             const formData = {
                 name: document.getElementById('customer-name').value,
                 address: document.getElementById('customer-address').value,
@@ -306,26 +337,36 @@
                 paymentMethod: document.getElementById('payment-method').value,
                 paysWith: document.getElementById('pays-with').value,
             };
+            
+            if (formData.paymentMethod === 'Efectivo' && parseInt(formData.paysWith || 0) < total) {
+                 showNotification("El monto de pago en efectivo debe ser igual o superior al total.", 'error', 4000);
+                 return;
+            }
 
-            const total = window.calculateTotal();
+            // Generamos el mensaje ANTES de limpiar el carrito
             const message = generateWhatsAppMessage(formData, total, formData.paymentMethod);
             const whatsappUrl = `https://wa.me/${RESTAURANT_PHONE}?text=${message}`;
 
             window.closeCheckoutModal();
+            
             // Limpiar el carrito después de generar el pedido
             window.clearCart(); 
 
             if (formData.paymentMethod === 'Online') {
-                // Simulación de pasarela de pago
-                showNotification("Redirigiendo a pasarela de pago simulada...", 'info', 3000);
-                document.getElementById('confirmation-payment-method').textContent = "PAGO ONLINE (PENDIENTE)";
                 
-                // Mostrar el modal de confirmación con el botón de WhatsApp
+                // 1. Notificar y redirigir al pago de Mercado Pago
+                showNotification("¡Serás redirigido a Mercado Pago para pagar! Luego, haz clic en el botón verde para enviar el pedido con el comprobante.", 'info', 6000);
+                window.open(MERCADO_PAGO_LINK, '_blank'); 
+
+                // 2. Configurar y mostrar el modal de confirmación para el comprobante
+                document.getElementById('confirmation-payment-method').textContent = "ONLINE (PENDIENTE DE COMPROBANTE)";
+                
                 setTimeout(() => {
                     document.getElementById('confirmation-whatsapp-link').href = whatsappUrl;
                     document.getElementById('confirmation-modal').classList.remove('hidden');
-                }, 3500);
-
+                    document.body.classList.add('overflow-hidden'); // Bloquear scroll en modal de confirmación
+                }, 1000); 
+                
             } else {
                 // Pago en Efectivo: Redirección directa
                 window.open(whatsappUrl, '_blank');
@@ -333,7 +374,7 @@
             }
         };
 
-        // --- Lógica del Carrusel de Novedades (Revista) (MANTENIDA) ---
+        // --- Lógica del Carrusel de Novedades (Revista) ---
         let currentSlide = 0;
         let slideInterval;
         let totalSlides = 0;
@@ -345,7 +386,6 @@
             const slides = track.querySelectorAll('.carousel-slide');
             totalSlides = slides.length;
             
-            // Ciclo infinito (wraps around)
             if (index >= totalSlides) {
                 currentSlide = 0;
             } else if (index < 0) {
@@ -354,7 +394,6 @@
                 currentSlide = index;
             }
             
-            // Calcular el desplazamiento (100% por cada slide)
             const offset = -currentSlide * 100;
             track.style.transform = `translateX(${offset}%)`;
             
@@ -366,45 +405,45 @@
         
         const startAutoSlide = () => {
             clearInterval(slideInterval);
-            slideInterval = setInterval(nextSlide, 5000); // Cambia cada 5 segundos
+            slideInterval = setInterval(nextSlide, 5000); 
         };
 
         const updateDots = () => {
             const dotsContainer = document.getElementById('carousel-dots');
             if (!dotsContainer) return;
 
-            dotsContainer.innerHTML = ''; // Limpiar dots existentes
+            dotsContainer.innerHTML = ''; 
             for (let i = 0; i < totalSlides; i++) {
                 const dot = document.createElement('button');
-                dot.className = `w-3 h-3 rounded-full transition-all duration-300 ${i === currentSlide ? 'bg-red-600 w-6' : 'bg-gray-300'}`;
+                dot.className = `w-3 h-3 rounded-full transition-all duration-300 ease-in-out ${i === currentSlide ? 'bg-white shadow-lg w-6' : 'bg-gray-400'}`;
                 dot.onclick = () => {
                     goToSlide(i);
-                    startAutoSlide(); // Reiniciar auto-slide al hacer clic
+                    startAutoSlide(); 
                 };
                 dotsContainer.appendChild(dot);
             }
         };
 
-        // --- Sistema de Notificación (MANTENIDA) ---
+        // --- Sistema de Notificación ---
         window.notificationCounter = 0;
         window.showNotification = (message, type = 'success', duration = 2500) => {
             const container = document.getElementById('notification-container');
             const id = `notif-${window.notificationCounter++}`;
             
-            let bgColor = 'bg-green-500';
-            let icon = 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'; // Check circle
+            let bgColor = 'bg-green-600';
+            let icon = 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'; 
 
             if (type === 'error') {
-                bgColor = 'bg-red-500';
-                icon = 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'; // X circle
+                bgColor = 'bg-red-600';
+                icon = 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'; 
             } else if (type === 'info') {
-                bgColor = 'bg-blue-500';
-                icon = 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'; // Info circle
+                bgColor = 'bg-blue-600';
+                icon = 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'; 
             }
 
             const element = document.createElement('div');
             element.id = id;
-            element.className = `flex items-center ${bgColor} text-white text-sm font-bold px-4 py-3 rounded shadow-lg mb-2 transition-all duration-300 transform opacity-0 translate-y-2`;
+            element.className = `flex items-center ${bgColor} text-white text-sm font-bold px-4 py-3 rounded-xl shadow-lg mb-2 transition-all duration-300 transform opacity-0 translate-y-2`;
             element.innerHTML = `
                 <svg class="fill-current w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${icon}" />
@@ -414,12 +453,10 @@
             
             container.appendChild(element);
 
-            // Animar entrada
             setTimeout(() => {
                 element.classList.remove('opacity-0', 'translate-y-2');
             }, 10);
 
-            // Animar salida y eliminar
             setTimeout(() => {
                 element.classList.add('opacity-0', 'translate-y-2');
                 setTimeout(() => {
@@ -429,13 +466,10 @@
         };
 
 
-        // --- Inicialización (MODIFICADA) ---
+        // --- Inicialización ---
         window.onload = () => {
-            
-            // Inicializar el carrito
             window.renderCart();
 
-            // Inicializar el carrusel
             const prevBtn = document.getElementById('prev-btn');
             const nextBtn = document.getElementById('next-btn');
             if (prevBtn && nextBtn) {
@@ -445,88 +479,121 @@
             goToSlide(0); 
             startAutoSlide();
             
-            // Renderizar la grilla de productos y las pestañas por primera vez (¡NUEVO!)
             window.renderProducts();
         };
+
+        // --- Modal de Imagen (Lógica Unificada) ---
+        // Se abre al recibir la URL de la imagen
+        window.openImageModal = (imgSrc) => {
+            const modal = document.getElementById("imageModal");
+            const modalImg = document.getElementById("modalImage");
+            
+            // Setea la fuente de la imagen
+            modalImg.src = imgSrc;
+            // Muestra el modal
+            modal.classList.remove("hidden");
+            // Bloquea el scroll del body
+            document.body.classList.add('overflow-hidden');
+        }
+
+        // Se cierra el modal
+        window.closeImageModal = () => {
+            const modal = document.getElementById("imageModal");
+            modal.classList.add("hidden");
+            // Reactiva el scroll del body
+            document.body.classList.remove('overflow-hidden');
+        }
+
     </script>
 </head>
 <body class="min-h-screen">
 
-    <div id="notification-container" class="fixed top-4 right-4 z-50 w-full max-w-xs pointer-events-none">
-        </div>
+    <div id="imageModal" class="hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[100]" onclick="closeImageModal()">
+        
+        <span class="absolute top-5 right-5 text-white text-5xl cursor-pointer hover:text-gray-300 z-[101]" onclick="closeImageModal()">&times;</span>
+        
+        <img id="modalImage" class="max-w-[95%] max-h-[90vh] rounded-lg shadow-2xl object-contain" onclick="event.stopPropagation()" />
+    
+    </div>
 
-    <header class="bg-white shadow-md sticky top-0 z-10">
+
+    <div id="notification-container" class="fixed top-4 right-4 z-50 w-full max-w-xs pointer-events-none">
+    </div>
+
+    <header class="bg-white shadow-xl sticky top-0 z-20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-            <h1 class="text-3xl font-extrabold text-red-600">
+            <h1 class="text-3xl font-extrabold text-red-600 flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
-                MODA RÁPIDA
+                <span class="text-xl sm:text-3xl">MODA RÁPIDA</span>
             </h1>
         </div>
     </header>
 
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
         <h2 class="text-3xl font-extrabold text-gray-800 mb-4">✨ Novedades Exclusivas</h2>
-        <div id="magazine-carousel" class="relative overflow-hidden rounded-xl shadow-2xl bg-white h-[400px] md:h-[500px]">
+        <div id="magazine-carousel" class="relative overflow-hidden rounded-2xl shadow-2xl bg-white h-[350px] md:h-[450px] lg:h-[550px]">
             <div id="carousel-track" class="h-full flex transition-transform duration-500 ease-in-out">
                 <div class="carousel-slide flex-shrink-0 w-full h-full bg-cover bg-center flex items-center p-8 md:p-16 text-white" style="background-image: url('https://placehold.co/1200x500/A855F7/FFFFFF?text=Nueva+Colecci%C3%B3n+Invierno');">
-                    <div class="bg-black bg-opacity-40 p-6 rounded-lg max-w-lg">
+                    <div class="bg-black/50 p-6 rounded-xl max-w-lg">
                         <p class="text-sm font-light uppercase tracking-widest text-yellow-300">Edición Limitada</p>
-                        <h3 class="text-4xl md:text-5xl font-bold mt-2 leading-tight">La Colección 'Invierno Urbano' ha llegado.</h3>
-                        <p class="mt-4 text-lg">Descubre texturas y cortes que definen el estilo de esta temporada.</p>
-                        <a href="#product-grid-anchor" class="mt-6 inline-block bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-full transition duration-300 text-sm uppercase tracking-wider">Ver Ahora</a>
+                        <h3 class="text-3xl md:text-5xl font-extrabold mt-2 leading-tight">La Colección 'Invierno Urbano' ha llegado.</h3>
+                        <p class="mt-4 text-base md:text-lg">Descubre texturas y cortes que definen el estilo de esta temporada.</p>
+                        <a href="#product-grid-anchor" class="mt-6 inline-block bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-full transition duration-300 text-sm uppercase tracking-wider shadow-lg">Ver Ahora</a>
                     </div>
                 </div>
                 <div class="carousel-slide flex-shrink-0 w-full h-full bg-cover bg-center flex items-center justify-end p-8 md:p-16 text-white" style="background-image: url('https://placehold.co/1200x500/EC4899/FFFFFF?text=Ofertas+Flash+en+Accesorios');">
-                    <div class="bg-black bg-opacity-40 p-6 rounded-lg max-w-lg text-right">
+                    <div class="bg-black/50 p-6 rounded-xl max-w-lg text-right">
                         <p class="text-sm font-light uppercase tracking-widest text-teal-300">OFERTA FLASH</p>
-                        <h3 class="text-4xl md:text-5xl font-bold mt-2 leading-tight">Accesorios Top con 30% de Descuento.</h3>
-                        <p class="mt-4 text-lg">Solo por 48 horas: bolsos, gorros y más para completar tu look.</p>
-                        <a href="#product-grid-anchor" class="mt-6 inline-block bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-8 rounded-full transition duration-300 text-sm uppercase tracking-wider">Comprar</a>
+                        <h3 class="text-3xl md:text-5xl font-extrabold mt-2 leading-tight">Accesorios Top con 30% de Descuento.</h3>
+                        <p class="mt-4 text-base md:text-lg">Solo por 48 horas: bolsos, gorros y más para completar tu look.</p>
+                        <a href="#product-grid-anchor" class="mt-6 inline-block bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-8 rounded-full transition duration-300 text-sm uppercase tracking-wider shadow-lg">Comprar</a>
                     </div>
                 </div>
                 <div class="carousel-slide flex-shrink-0 w-full h-full bg-cover bg-center flex items-center p-8 md:p-16 text-white" style="background-image: url('https://placehold.co/1200x500/1D4ED8/FFFFFF?text=Tendencias+Jeans+2025');">
-                    <div class="bg-black bg-opacity-40 p-6 rounded-lg max-w-lg">
+                    <div class="bg-black/50 p-6 rounded-xl max-w-lg">
                         <p class="text-sm font-light uppercase tracking-widest text-red-300">Tendencias 2025</p>
-                        <h3 class="text-4xl md:text-5xl font-bold mt-2 leading-tight">Vuelven los Jeans Anchos y el Denim Oscuro.</h3>
-                        <p class="mt-4 text-lg">Encuentra tu próximo par favorito con ajuste perfecto.</p>
-                        <a href="#product-grid-anchor" class="mt-6 inline-block bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-full transition duration-300 text-sm uppercase tracking-wider">Explorar</a>
+                        <h3 class="text-3xl md:text-5xl font-extrabold mt-2 leading-tight">Vuelven los Jeans Anchos y el Denim Oscuro.</h3>
+                        <p class="mt-4 text-base md:text-lg">Encuentra tu próximo par favorito con ajuste perfecto.</p>
+                        <a href="#product-grid-anchor" class="mt-6 inline-block bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-full transition duration-300 text-sm uppercase tracking-wider shadow-lg">Explorar</a>
                     </div>
                 </div>
             </div>
-            <button id="prev-btn" class="absolute top-1/2 left-4 transform -translate-y-1/2 bg-white/50 hover:bg-white/80 text-gray-800 p-3 rounded-full transition duration-300 hidden md:block z-10">
+            <button id="prev-btn" class="absolute top-1/2 left-4 transform -translate-y-1/2 bg-white/40 hover:bg-white/70 text-gray-800 p-3 rounded-full transition duration-300 hidden md:block z-10 shadow-md">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
             </button>
-            <button id="next-btn" class="absolute top-1/2 right-4 transform -translate-y-1/2 bg-white/50 hover:bg-white/80 text-gray-800 p-3 rounded-full transition duration-300 hidden md:block z-10">
+            <button id="next-btn" class="absolute top-1/2 right-4 transform -translate-y-1/2 bg-white/40 hover:bg-white/70 text-gray-800 p-3 rounded-full transition duration-300 hidden md:block z-10 shadow-md">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
             </button>
-            <div id="carousel-dots" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-10">
-                </div>
+            <div id="carousel-dots" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-10 p-2 rounded-full bg-black/20">
+            </div>
         </div>
     </section>
 
-    <main class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 pt-0 grid grid-cols-1 lg:grid-cols-4 gap-8">
+    <main id="product-grid-anchor" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 pt-0 grid grid-cols-1 lg:grid-cols-4 gap-8">
         
         <div class="lg:col-span-3">
-            <h2 id="product-grid-title" class="text-2xl font-bold text-gray-800 mb-4">Nuestros Artículos Destacados</h2>
+            <h2 id="product-grid-title" class="text-2xl font-bold text-gray-800 mb-4 border-b border-gray-200 pb-2"></h2>
             
-            <div id="category-tabs" class="flex flex-wrap gap-4 border-b border-gray-200 mb-6 bg-white p-3 rounded-lg shadow-sm">
+            <div id="category-tabs-wrapper" class="overflow-x-auto mb-6 bg-white p-2 rounded-xl shadow-lg">
+                <div id="category-tabs" class="flex flex-nowrap space-x-2">
                 </div>
+            </div>
             
             <div id="product-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                </div>
+            </div>
         </div>
 
-        <div class="lg:col-span-1 sticky top-20">
-            <div class="bg-white p-6 rounded-xl shadow-2xl border border-gray-100">
-                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center justify-between">
+        <div class="lg:col-span-1">
+            <div class="bg-white p-6 rounded-xl shadow-2xl border border-gray-100 sticky top-20">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center justify-between border-b pb-3">
                     <span>🛒 Tu Carrito</span>
-                    <button onclick="clearCart()" class="text-sm text-red-500 hover:text-red-700 font-medium">Vaciar</button>
+                    <button onclick="clearCart()" class="text-sm text-red-500 hover:text-red-700 font-medium transition duration-200">Vaciar</button>
                 </h2>
                 
                 <div id="cart-list" class="divide-y divide-gray-200 min-h-[100px]">
-                    </div>
+                </div>
                 
                 <p id="cart-empty-message" class="text-center text-gray-500 py-6 text-sm">
                     El carrito está vacío. ¡Añade algo!
@@ -539,76 +606,115 @@
                             $0
                         </span>
                     </div>
-
-                    <button id="checkout-button" onclick="openCheckoutModal()" disabled class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg">
-                        Confirmar y Pagar
+                    
+                    <button id="checkout-button" onclick="openCheckoutModal()" disabled class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition duration-300 opacity-50 cursor-not-allowed">
+                        Completar Pedido
                     </button>
                 </div>
             </div>
         </div>
     </main>
 
-    <div id="checkout-modal" class="modal fixed inset-0 hidden items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 sm:p-8 transform transition-all duration-300">
-            <h3 class="text-2xl font-bold text-gray-800 mb-6">Detalles del Pedido y Pago</h3>
+    <div id="checkout-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity modal" aria-hidden="true" onclick="closeCheckoutModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            
+            <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-2xl leading-6 font-bold text-gray-900 mb-2" id="modal-title">
+                                📝 Finalizar Compra
+                            </h3>
+                            <p class="text-sm text-gray-500 mb-6">
+                                Completa tus datos para enviar el pedido por WhatsApp.
+                            </p>
+                            
+                            <form id="checkout-form" onsubmit="event.preventDefault(); processCheckout();" class="space-y-4">
+                                <div>
+                                    <label for="customer-name" class="block text-sm font-medium text-gray-700">Nombre Completo</label>
+                                    <input type="text" id="customer-name" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" placeholder="Tu nombre">
+                                </div>
+                                
+                                <div>
+                                    <label for="customer-phone" class="block text-sm font-medium text-gray-700">Teléfono</label>
+                                    <input type="tel" id="customer-phone" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" placeholder="Tu teléfono">
+                                </div>
+                                
+                                <div>
+                                    <label for="customer-address" class="block text-sm font-medium text-gray-700">Dirección de Envío</label>
+                                    <textarea id="customer-address" required rows="2" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" placeholder="Calle, número, ciudad..."></textarea>
+                                </div>
 
-            <form id="checkout-form" onsubmit="event.preventDefault(); processCheckout();">
-                <div class="mb-6 border-b border-gray-200 pb-4">
-                    <p class="text-lg font-semibold text-gray-700 mb-3">Datos de Envío</p>
-                    <div class="grid grid-cols-1 gap-4">
-                        <input type="text" id="customer-name" placeholder="Tu Nombre Completo" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500">
-                        <input type="tel" id="customer-phone" placeholder="Tu Teléfono (WhatsApp)" required pattern="[0-9+ ]{8,}" title="Introduce un número de teléfono válido" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500">
-                        <textarea id="customer-address" placeholder="Dirección de Envío Completa" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"></textarea>
+                                <div class="border-t border-gray-200 pt-4 mt-4">
+                                    <h4 class="font-semibold text-gray-800 mb-3">Método de Pago</h4>
+                                    
+                                    <div class="mb-3">
+                                        <select id="payment-method" onchange="handlePaymentChange()" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm rounded-md">
+                                            <option value="Efectivo">💵 Efectivo (Contra Entrega)</option>
+                                            <option value="Online">💳 Transferencia / Mercado Pago</option>
+                                        </select>
+                                    </div>
+
+                                    <div id="payment-cash-details" class="bg-yellow-50 p-3 rounded-md border border-yellow-200 animate-fade-in">
+                                        <label for="pays-with" class="block text-sm font-medium text-yellow-800 mb-1">¿Con cuánto abonas? (Para el vuelto)</label>
+                                        <div class="relative rounded-md shadow-sm">
+                                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <span class="text-gray-500 sm:text-sm">$</span>
+                                            </div>
+                                            <input type="number" name="pays-with" id="pays-with" required class="focus:ring-yellow-500 focus:border-yellow-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md" placeholder="0.00">
+                                        </div>
+                                        <p class="text-xs text-yellow-700 mt-1">Total a pagar: <span class="font-bold" id="checkout-total"></span></p>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
-
-                <div class="mb-8">
-                    <p class="text-lg font-semibold text-gray-700 mb-3">Método de Pago</p>
-                    <select id="payment-method" onchange="handlePaymentChange()" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 appearance-none bg-white">
-                        <option value="" disabled selected>Selecciona una opción</option>
-                        <option value="Efectivo">Efectivo (Pago al Recibir)</option>
-                        <option value="Online">Online (Simulado - Transferencia/Tarjeta)</option>
-                    </select>
-
-                    <div id="payment-cash-details" class="hidden mt-4 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                        <label for="pays-with" class="block text-sm font-medium text-yellow-800 mb-2">¿Con cuánto pagarás para calcular el vuelto?</label>
-                        <input type="number" id="pays-with" placeholder="Monto de pago (ej: 50000)" min="0" class="w-full p-3 border border-yellow-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500 bg-white">
-                        <p class="mt-2 text-xs text-yellow-700">Total a Pagar: <span class="font-bold" id="checkout-total"></span></p>
-                    </div>
-                </div>
-                
-                <div class="flex justify-end space-x-4">
-                    <button type="button" onclick="closeCheckoutModal()" class="px-6 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition duration-150">
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" onclick="processCheckout()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm">
+                        Enviar Pedido por WhatsApp
+                    </button>
+                    <button type="button" onclick="closeCheckoutModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
                         Cancelar
                     </button>
-                    <button type="submit" class="px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition duration-150 shadow-md">
-                        Generar Pedido
-                    </button>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 
-    <div id="confirmation-modal" class="modal fixed inset-0 hidden items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 sm:p-8 text-center transform transition-all duration-300">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-blue-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c1.657 0 3 .895 3 2s-1.343 2-3 2a3 3 0 00-3 2c0 1.105.343 2 3 2m-3-2V9m2 2V9m0 0H9m5 0h2m-2-2h2m-4 8h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <h3 class="text-xl font-bold text-gray-800 mb-2">¡Transacción Simulada Exitosa!</h3>
-            <p class="text-gray-600 mb-4">Tu pedido ha sido registrado con el estado de pago:</p>
-            <p id="confirmation-payment-method" class="text-2xl font-extrabold text-red-600 mb-6"></p>
-
-            <p class="text-sm text-gray-700 mb-6 bg-red-50 p-3 rounded-lg">
-                Ahora, por favor, haz clic en el botón para enviar el comprobante y los detalles del pedido a nuestro WhatsApp y finalizar la compra.
-            </p>
-
-            <a id="confirmation-whatsapp-link" target="_blank" onclick="document.getElementById('confirmation-modal').classList.add('hidden');" class="inline-flex items-center justify-center w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-lg text-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-                Enviar a WhatsApp
-            </a>
+    <div id="confirmation-modal" class="hidden fixed inset-0 z-[60] overflow-y-auto" aria-labelledby="confirmation-title" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen px-4 text-center">
+            <div class="fixed inset-0 bg-gray-900 bg-opacity-80 transition-opacity"></div>
+            
+            <div class="inline-block align-middle bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:max-w-md w-full p-6 relative">
+                <div class="text-center">
+                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-4">
+                        <svg class="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl leading-6 font-bold text-gray-900" id="confirmation-title">
+                        Pago Iniciado
+                    </h3>
+                    <div class="mt-2">
+                        <p class="text-sm text-gray-500">
+                            Has seleccionado el método de pago: <span class="font-bold text-gray-800" id="confirmation-payment-method"></span>.
+                        </p>
+                        <p class="text-sm text-gray-600 mt-4 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                            ⚠️ <b>IMPORTANTE:</b> Para finalizar, envía el mensaje de pedido por WhatsApp y adjunta la captura de pantalla de tu comprobante de pago en el chat.
+                        </p>
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <a id="confirmation-whatsapp-link" href="#" target="_blank" class="w-full inline-flex justify-center rounded-xl border border-transparent shadow-md px-4 py-3 bg-green-600 text-base font-bold text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all transform hover:scale-[1.02]">
+                        Finalizar y Enviar Comprobante 📤
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
+    
 </body>
 </html>
